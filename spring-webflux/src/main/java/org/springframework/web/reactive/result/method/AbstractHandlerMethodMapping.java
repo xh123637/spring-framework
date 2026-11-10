@@ -22,7 +22,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -462,7 +462,8 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 */
 	class MappingRegistry {
 
-		private final Map<T, MappingRegistration<T>> registry = new HashMap<>();
+		// Linked for faster iteration: lookups without a direct path match iterate over all registrations.
+		private final Map<T, MappingRegistration<T>> registry = new LinkedHashMap<>();
 
 		private final MultiValueMap<String, T> pathLookup = new LinkedMultiValueMap<>();
 

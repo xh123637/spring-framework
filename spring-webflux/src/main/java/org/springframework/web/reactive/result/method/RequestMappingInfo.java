@@ -242,6 +242,12 @@ public final class RequestMappingInfo implements RequestCondition<RequestMapping
 	 */
 	@Override
 	public @Nullable RequestMappingInfo getMatchingCondition(ServerWebExchange exchange) {
+		// Check the path first: when a request has no direct path match, every mapping is checked,
+		// and the path rejects nearly all of them more cheaply than the other conditions.
+		PatternsRequestCondition patterns = this.patternsCondition.getMatchingCondition(exchange);
+		if (patterns == null) {
+			return null;
+		}
 		RequestMethodsRequestCondition methods = this.methodsCondition.getMatchingCondition(exchange);
 		if (methods == null) {
 			return null;
@@ -254,7 +260,7 @@ public final class RequestMappingInfo implements RequestCondition<RequestMapping
 		if (headers == null) {
 			return null;
 		}
-		// Match "Content-Type" and "Accept" (parsed ones and cached) before patterns
+		// Match "Content-Type" and "Accept" (parsed ones and cached)
 		ConsumesRequestCondition consumes = this.consumesCondition.getMatchingCondition(exchange);
 		if (consumes == null) {
 			return null;
@@ -265,10 +271,6 @@ public final class RequestMappingInfo implements RequestCondition<RequestMapping
 		}
 		VersionRequestCondition version = this.versionCondition.getMatchingCondition(exchange);
 		if (version == null) {
-			return null;
-		}
-		PatternsRequestCondition patterns = this.patternsCondition.getMatchingCondition(exchange);
-		if (patterns == null) {
 			return null;
 		}
 		RequestConditionHolder custom = this.customConditionHolder.getMatchingCondition(exchange);

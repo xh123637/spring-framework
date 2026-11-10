@@ -419,6 +419,22 @@ public final class RequestMappingInfo implements RequestCondition<RequestMapping
 	@SuppressWarnings("removal")
 	@Override
 	public @Nullable RequestMappingInfo getMatchingCondition(HttpServletRequest request) {
+		// Check the path first: when a request has no direct path match, every mapping is checked,
+		// and the path rejects nearly all of them more cheaply than the other conditions.
+		PathPatternsRequestCondition pathPatterns = null;
+		if (this.pathPatternsCondition != null) {
+			pathPatterns = this.pathPatternsCondition.getMatchingCondition(request);
+			if (pathPatterns == null) {
+				return null;
+			}
+		}
+		PatternsRequestCondition patterns = null;
+		if (this.patternsCondition != null) {
+			patterns = this.patternsCondition.getMatchingCondition(request);
+			if (patterns == null) {
+				return null;
+			}
+		}
 		RequestMethodsRequestCondition methods = this.methodsCondition.getMatchingCondition(request);
 		if (methods == null) {
 			return null;
@@ -442,20 +458,6 @@ public final class RequestMappingInfo implements RequestCondition<RequestMapping
 		VersionRequestCondition version = this.versionCondition.getMatchingCondition(request);
 		if (version == null) {
 			return null;
-		}
-		PathPatternsRequestCondition pathPatterns = null;
-		if (this.pathPatternsCondition != null) {
-			pathPatterns = this.pathPatternsCondition.getMatchingCondition(request);
-			if (pathPatterns == null) {
-				return null;
-			}
-		}
-		PatternsRequestCondition patterns = null;
-		if (this.patternsCondition != null) {
-			patterns = this.patternsCondition.getMatchingCondition(request);
-			if (patterns == null) {
-				return null;
-			}
 		}
 		RequestConditionHolder custom = this.customConditionHolder.getMatchingCondition(request);
 		if (custom == null) {

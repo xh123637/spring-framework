@@ -19,6 +19,7 @@ package org.springframework.web.servlet.mvc.method;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,6 +33,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.handler.PathPatternsParameterizedTest;
 import org.springframework.web.servlet.handler.PathPatternsTestUtils;
 import org.springframework.web.testfixture.servlet.MockHttpServletRequest;
+import org.springframework.web.util.ServletRequestPathUtils;
+import org.springframework.web.util.UrlPathHelper;
 import org.springframework.web.util.pattern.PathPatternParser;
 
 import static java.util.Arrays.asList;
@@ -132,6 +135,38 @@ class RequestMappingInfoTests {
 		match = info.getMatchingCondition(request);
 
 		assertThat(match).isNull();
+	}
+
+	@PathPatternsParameterizedTest // gh-37623
+	void pathConditionCheckedFirst(RequestMappingInfo.Builder builder) {
+		boolean useParsedPatterns = builder.build().getPathPatternsCondition() != null;
+
+		AtomicInteger methodCalls = new AtomicInteger();
+		MockHttpServletRequest request = new MockHttpServletRequest() {
+			@Override
+			public String getMethod() {
+				methodCalls.incrementAndGet();
+				return super.getMethod();
+			}
+		};
+		request.setMethod("GET");
+		request.setRequestURI("/other");
+		if (useParsedPatterns) {
+			ServletRequestPathUtils.parseAndCache(request);
+		}
+		else {
+			UrlPathHelper.defaultInstance.resolveAndCacheLookupPath(request);
+		}
+		methodCalls.set(0);
+
+		RequestMappingInfo info = builder.paths("/foo/{id}").methods(GET).build();
+		assertThat(info.getMatchingCondition(request)).isNull();
+		assertThat(methodCalls).hasValue(0);
+
+		// Control: a request with a matching path still matches.
+		MockHttpServletRequest matchingRequest =
+				PathPatternsTestUtils.initRequest("GET", "/foo/123", useParsedPatterns);
+		assertThat(info.getMatchingCondition(matchingRequest)).isNotNull();
 	}
 
 	@Test

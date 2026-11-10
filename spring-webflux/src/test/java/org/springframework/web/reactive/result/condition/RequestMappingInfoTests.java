@@ -20,12 +20,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
 import org.springframework.web.accept.ApiVersionHolder;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.reactive.HandlerMapping;
@@ -127,6 +131,29 @@ class RequestMappingInfoTests {
 		match = info.getMatchingCondition(exchange);
 
 		assertThat(match).isNull();
+	}
+
+	@Test // gh-37623
+	void pathConditionCheckedFirst() {
+		AtomicInteger methodCalls = new AtomicInteger();
+		ServerHttpRequest request = new ServerHttpRequestDecorator(MockServerHttpRequest.get("/other").build()) {
+			@Override
+			public HttpMethod getMethod() {
+				methodCalls.incrementAndGet();
+				return super.getMethod();
+			}
+		};
+		ServerWebExchange exchange = initExchange(MockServerHttpRequest.get("/other"))
+				.mutate().request(request).build();
+		methodCalls.set(0);
+
+		RequestMappingInfo info = paths("/foo/{id}").methods(GET).build();
+		assertThat(info.getMatchingCondition(exchange)).isNull();
+		assertThat(methodCalls).hasValue(0);
+
+		// Control: a request with a matching path still matches.
+		ServerWebExchange matchingExchange = initExchange(MockServerHttpRequest.get("/foo/123"));
+		assertThat(info.getMatchingCondition(matchingExchange)).isNotNull();
 	}
 
 	@Test
