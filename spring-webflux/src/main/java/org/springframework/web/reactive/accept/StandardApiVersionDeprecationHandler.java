@@ -17,9 +17,11 @@
 package org.springframework.web.reactive.accept;
 
 import java.net.URI;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -47,6 +49,16 @@ import org.springframework.web.server.ServerWebExchange;
  * @since 7.0
  */
 public class StandardApiVersionDeprecationHandler implements ApiVersionDeprecationHandler {
+
+	/**
+	 * Formatter for the "Sunset" header, matching
+	 * {@link HttpHeaders#setZonedDateTime(String, ZonedDateTime)}.
+	 * Unlike {@link DateTimeFormatter#RFC_1123_DATE_TIME}, it pads the
+	 * day of month to two digits, as required by the IMF-fixdate format.
+	 */
+	private static final DateTimeFormatter SUNSET_DATE_FORMATTER =
+			DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US)
+					.withZone(ZoneId.of("GMT"));
 
 	private final ApiVersionParser<?> versionParser;
 
@@ -236,7 +248,7 @@ public class StandardApiVersionDeprecationHandler implements ApiVersionDeprecati
 		public VersionInfo withSunsetDate(ZonedDateTime sunsetDate) {
 			return new VersionInfo(version(), exchangePredicate(),
 					deprecationDate(), deprecationLink(),
-					sunsetDate.format(DateTimeFormatter.RFC_1123_DATE_TIME), sunsetLink());
+					SUNSET_DATE_FORMATTER.format(sunsetDate), sunsetLink());
 		}
 
 		public VersionInfo withSunsetLink(URI uri, MediaType mediaType) {

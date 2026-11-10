@@ -17,6 +17,7 @@
 package org.springframework.web.reactive.accept;
 
 import java.net.URI;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -63,6 +64,25 @@ class StandardApiVersionDeprecationHandlerTests {
 				"<" + deprecationUrl + ">; rel=\"deprecation\"; type=\"text/html\"",
 				"<" + sunsetUrl + ">; rel=\"sunset\"; type=\"text/html\""
 		);
+	}
+
+	@Test
+	void sunsetDateWithSingleDigitDay() {
+		ApiVersionParser<String> parser = version -> version;
+		StandardApiVersionDeprecationHandler handler = new StandardApiVersionDeprecationHandler(parser);
+
+		handler.configureVersion("1.1")
+				.setSunsetDate(ZonedDateTime.of(2099, 7, 1, 0, 0, 0, 0, ZoneOffset.UTC));
+		handler.configureVersion("1.2")
+				.setSunsetDate(ZonedDateTime.of(2099, 7, 9, 5, 30, 0, 0, ZoneOffset.ofHoursMinutes(5, 30)));
+
+		handler.handleVersion("1.1", handler, exchange);
+		assertThat(exchange.getResponse().getHeaders().getFirst("Sunset"))
+				.isEqualTo("Wed, 01 Jul 2099 00:00:00 GMT");
+
+		handler.handleVersion("1.2", handler, exchange);
+		assertThat(exchange.getResponse().getHeaders().getFirst("Sunset"))
+				.isEqualTo("Thu, 09 Jul 2099 00:00:00 GMT");
 	}
 
 	private static ZonedDateTime getDate(String date) {
